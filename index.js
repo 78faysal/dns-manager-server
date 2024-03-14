@@ -7,7 +7,7 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri =
   "mongodb+srv://dns-manager:UITQJvJHy0CSjFDq@cluster0.jq69c8i.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
@@ -48,17 +48,52 @@ async function run() {
       res.send(result);
     });
 
-
-    // records api 
-    app.get('/records', async(req, res) => {
+    // records api
+    app.get("/records", async (req, res) => {
+      const targetedDomain = req.query;
+      const domain = targetedDomain?.domain;
+      if (targetedDomain?.domain === "all") {
         const result = await dnsRecordCollection.find().toArray();
         res.send(result);
-    })
-    app.post('/records', async(req, res) => {
-        const record = req.body;
-        const result = await dnsRecordCollection.insertOne(record);
+      } else if (domain) {
+        const result = await dnsRecordCollection
+          .find({ domain_name: { $regex: domain } })
+          .toArray();
         res.send(result);
-    })
+      }
+    });
+
+    app.get("/single-record/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await dnsRecordCollection.findOne(filter);
+      res.send(result);
+    });
+
+    app.post("/records", async (req, res) => {
+      const record = req.body;
+      const result = await dnsRecordCollection.insertOne(record);
+      res.send(result);
+    });
+
+    app.put("/single-record/:id", async (req, res) => {
+      const id = req.params.id;
+      const { domain_name, record_type, record_value, ttl, description } =
+        req.body;
+    //   console.log(req.body);
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          domain_name,
+          record_type,
+          record_value,
+          ttl,
+          description,
+        },
+      };
+      const result = await dnsRecordCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
