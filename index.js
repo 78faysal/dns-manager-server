@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
+require('dotenv').config();
+const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -9,7 +11,7 @@ app.use(express.json());
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri =
-  "mongodb+srv://dns-manager:UITQJvJHy0CSjFDq@cluster0.jq69c8i.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+  `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.jq69c8i.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -22,12 +24,31 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
 
     const domainCollection = client.db("DNS_Manager").collection("domains");
     const dnsRecordCollection = client.db("DNS_Manager").collection("records");
     const userCollection = client.db('DNS_Manager').collection('users');
+
+
+    // middleware 
+    
+
+
+    //jwt api
+    app.post('/jwt', async(req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_TOKEN, {
+        expiresIn: '5h',
+      })
+      res.send({token})
+    })
+
+    // users api
+    app.post('/users', async(req, res) => {
+      const userInfo = req.body;
+      const result = await userCollection.insertOne(userInfo);
+      res.send(result);
+    })
 
     // domains api
     app.get("/domains", async (req, res) => {
@@ -120,8 +141,6 @@ async function run() {
       res.send({domains, records, users})
     })
 
-    // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
