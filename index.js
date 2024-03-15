@@ -27,6 +27,7 @@ async function run() {
 
     const domainCollection = client.db("DNS_Manager").collection("domains");
     const dnsRecordCollection = client.db("DNS_Manager").collection("records");
+    const userCollection = client.db('DNS_Manager').collection('users');
 
     // domains api
     app.get("/domains", async (req, res) => {
@@ -52,6 +53,15 @@ async function run() {
     app.get("/records", async (req, res) => {
       const targetedDomain = req.query;
       const domain = targetedDomain?.domain;
+      const { searchDomain } = req.query;
+      
+      if (searchDomain?.length > 0) {
+        // const filter = { domain_name: searchDomain };
+        const searchResult = await dnsRecordCollection
+          .find({ domain_name: { $regex: searchDomain } })
+          .toArray();
+        return res.send(searchResult);
+      }
       if (targetedDomain?.domain === "all") {
         const result = await dnsRecordCollection.find().toArray();
         res.send(result);
@@ -80,7 +90,7 @@ async function run() {
       const id = req.params.id;
       const { domain_name, record_type, record_value, ttl, description } =
         req.body;
-    //   console.log(req.body);
+      //   console.log(req.body);
       const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
@@ -94,6 +104,21 @@ async function run() {
       const result = await dnsRecordCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
+
+    app.delete("/single-record/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await dnsRecordCollection.deleteOne(filter);
+      res.send(result);
+    });
+
+    // all data statistics
+    app.get('/statistics', async(req, res) => {
+      const domains = await domainCollection.countDocuments();
+      const records = await dnsRecordCollection.countDocuments();
+      const users = await userCollection.countDocuments();
+      res.send({domains, records, users})
+    })
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
